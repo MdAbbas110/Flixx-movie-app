@@ -1,5 +1,15 @@
 const global = {
-    currentpage: window.location.pathname
+    currentpage: window.location.pathname,
+    search: {
+      term: '',
+      type: '',
+      page: 1,
+      totalPages: 1
+    },
+    api: {
+      apiKey: 'f377ae6687ca580212d1190f61f55170',
+      apiUrl: 'https://api.themoviedb.org/3/'
+    }
 }
 
 // Helight active links
@@ -74,7 +84,7 @@ async function displayPopularMovies() {
               ${
                 movie.poster_path 
                 ?`<img
-                src="https://image.tmdb.org/t/p/w500${movie.poster_path}"
+                src="https://image.tmdb.org/t/p/w500/${movie.poster_path}"
                 class="card-img-top"
                 alt="${movie.title}"/>`
                 : `<img
@@ -86,7 +96,8 @@ async function displayPopularMovies() {
             <div class="card-body">
               <h5 class="card-title">${movie.title}</h5>
               <p class="card-text">
-            <small class="text-muted">Release: ${movie.release_date}</small>
+            <small class="text-muted">Release: 
+            ${movie.release_date}</small>
             </p>
          </div> `;
     
@@ -298,17 +309,76 @@ function displayBackgroundImage(type, backgroundPath) {
     }
 }
 
+//! search the movie or tv show
+async function search() {
+  const queryString = window.location.search
+  const urlPrams = new URLSearchParams(queryString)
+  
+  global.search.type = urlPrams.get('type')
+  global.search.term = urlPrams.get('search-term')
 
-// Feth data from TMDB API
+  if (global.search.term !== '' && global.search.term !== null) {
+    // @todo make requst and display result
+    const { results, total_pages, page } = await searchAPIData()
+
+    if (results.length === 0) {
+      showAlert('No result found')
+      return
+    }
+
+
+    displaySearchResults(results)
+    document.querySelector('#search-term').value= '';
+
+  } else {
+    showAlert('Please enter a search term', 'error')
+  }
+}
+
+//! search result Display to Dom
+function displaySearchResults(results) {
+  
+  results.forEach((result) => {
+    const div = document.createElement('div')
+    div.classList.add('card')
+    div.innerHTML = `
+        <a href="${global.search.type}-details.html?id=${result.id}">
+          ${
+            result.poster_path 
+            ?`<img
+            src="https://image.tmdb.org/t/p/w500/${result.poster_path}"
+            class="card-img-top"
+            alt="${global.search.type === 'movie' ? result.title : result.name}"/>`
+            : `<img
+            src="images/no-image.jpg"
+            class="card-img-top"
+            alt="${global.search.type === 'movie' ? result.title : result.name}"/>`
+          }
+        </a>
+        <div class="card-body">
+          <h5 class="card-title">${global.search.type === 'movie' ? result.title : result.name}</h5>
+          <p class="card-text">
+        <small class="text-muted">Release: 
+        ${global.search.type === 'movie' ? result.release_date : result.first_air_date}</small>
+        </p>
+     </div> `;
+    
+    document.querySelector('#search-results').appendChild(div)
+})
+}
+
+
+//! Feth data from TMDB API
 async function fetchAPIData(endpoint) {
 // only use this key for development or small project 
 //you should store your key and make request from a server
-    const API_KEY = 'f377ae6687ca580212d1190f61f55170';
-    const API_URL = 'https://api.themoviedb.org/3/';
+    const API_KEY = global.api.apiKey;
+    const API_URL = global.api.apiUrl;
 
     showSpinner();
 
-    const response = await fetch(`${API_URL}${endpoint}?api_key=${API_KEY}&language=en-US`)
+    const response = await 
+    fetch(`${API_URL}${endpoint}?api_key=${API_KEY}&language=en-US`)
 
     const data = await response.json()
 
@@ -317,12 +387,40 @@ async function fetchAPIData(endpoint) {
     return data;
 }
 
+//! make Request to Search anything
+async function searchAPIData() {
+      const API_KEY = global.api.apiKey;
+      const API_URL = global.api.apiUrl;
+  
+      showSpinner();
+  
+      const response = await 
+      fetch(`${API_URL}search/${global.search.type}?api_key=${API_KEY}&language=en-US&query=${global.search.term}`)
+  
+      const data = await response.json()
+  
+      hideSpinner();
+  
+      return data;
+  }
+
+
 function showSpinner() {
     document.querySelector('.spinner').classList.add('show')
 }
 
 function hideSpinner() {
     document.querySelector('.spinner').classList.remove('show')
+}
+
+//! show Alert error
+function showAlert(message, className = 'error') {
+  const alertEl = document.createElement('div')
+  alertEl.classList.add('alert', className)
+  alertEl.appendChild(document.createTextNode(message))
+  document.querySelector('#alert').appendChild(alertEl)
+
+  setTimeout(() => alertEl.remove() ,3000)
 }
 
 function addCommasToNumber(number) {
@@ -347,7 +445,7 @@ function init() {
             displayShwoDetails()
         break;
         case '/search.html':
-            console.log('search');
+            search()
         break;
     }
     highlightActiveLinks()
