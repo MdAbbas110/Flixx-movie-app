@@ -4,7 +4,8 @@ const global = {
       term: '',
       type: '',
       page: 1,
-      totalPages: 1
+      totalPages: 1,
+      totalResults: 0
     },
     api: {
       apiKey: 'f377ae6687ca580212d1190f61f55170',
@@ -56,6 +57,10 @@ async function displaySlider() {
       autoplay: {
         delay: 3000,
         disableOnInteraction: false,
+      },
+      navigation: {
+        nextEl: '.swiper-button-next',
+        prevEl: '.swiper-button-prev',
       },
       breakpoints: {
         500: {
@@ -319,7 +324,11 @@ async function search() {
 
   if (global.search.term !== '' && global.search.term !== null) {
     // @todo make requst and display result
-    const { results, total_pages, page } = await searchAPIData()
+    const { results, total_pages, page,total_results } = await searchAPIData()
+
+    global.search.page = page
+    global.search.totalPages = total_pages
+    global.search.totalResults = total_results
 
     if (results.length === 0) {
       showAlert('No result found')
@@ -337,7 +346,11 @@ async function search() {
 
 //! search result Display to Dom
 function displaySearchResults(results) {
-  
+  // clear previous results
+  document.querySelector('#search-results').innerHTML = ''
+  document.querySelector('#search-results-heading').innerHTML = ''
+  document.querySelector('#pagination').innerHTML = ''
+
   results.forEach((result) => {
     const div = document.createElement('div')
     div.classList.add('card')
@@ -363,9 +376,54 @@ function displaySearchResults(results) {
         </p>
      </div> `;
     
+    document.querySelector('#search-results-heading').innerHTML =
+    `<h2>${results.length} of ${global.search.totalResults} Results for ${global.search.term}</h2>`
+
     document.querySelector('#search-results').appendChild(div)
+});
+
+    displayPagination();
+}
+
+
+//! create nd Pagination effect for search
+function displayPagination() {
+  const div = document.createElement('div')
+  div.classList.add('pagination')
+  div.innerHTML = `
+  <button class="btn btn-primary" id="prev">Prev</button>
+  <button class="btn btn-primary" id="next">Next</button>
+  <div class="page-counter">Page ${global.search.page} of ${global.search.totalPages}</div>
+  `;
+  document.querySelector('#pagination').appendChild(div)
+
+  // Disable prev button if on first page
+  if (global.search.page === 1) {
+    document.querySelector('#prev').disabled = true;
+  }
+
+  // Disable the next button if on last page
+  if(global.search.page === global.search.totalPages) {
+    document.querySelector('#next').disabled = true;
+  }
+
+  // Next Page with different result
+  document.querySelector('#next').addEventListener('click', async () =>
+  {
+    global.search.page++;
+    const { results, total_pages } = await searchAPIData()
+    displaySearchResults(results)
+  })
+
+  // Previous Page with different result
+document.querySelector('#prev').addEventListener('click', async () =>
+{
+  global.search.page--;
+  const { results, total_pages } = await searchAPIData()
+  displaySearchResults(results)
 })
 }
+//we can  make async function inside the events or callback as well
 
 
 //! Feth data from TMDB API
@@ -394,8 +452,7 @@ async function searchAPIData() {
   
       showSpinner();
   
-      const response = await 
-      fetch(`${API_URL}search/${global.search.type}?api_key=${API_KEY}&language=en-US&query=${global.search.term}`)
+      const response = await fetch(`${API_URL}search/${global.search.type}?api_key=${API_KEY}&language=en-US&query=${global.search.term}&page=${global.search.page}`);
   
       const data = await response.json()
   
